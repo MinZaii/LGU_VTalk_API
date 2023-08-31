@@ -1,0 +1,478 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace = "kr.co.softbridge.voplatform.room.mapper.RoomMapper">
+
+	<select id="getRoomTotalCount" parameterType="map" resultType="int">
+		/* ROOM 개수 조회 */
+		SELECT
+				COUNT(*)
+		FROM
+				TB_ROOM TR
+			<if test="userId !=null">
+				LEFT OUTER JOIN TB_ROOM_USER TRU
+				ON TRU.ROOM_NO = TR.ROOM_NO
+			</if>
+		WHERE
+				1=1
+			<if test="startDt != null">
+				AND TR.START_DT <![CDATA[>=]]>  DATE_FORMAT(#{startDt}, '%Y-%m-%d %H:%i:%s')
+			</if>
+			<if test="endDt != null">
+				AND TR.END_DT <![CDATA[<=]]> DATE_FORMAT(#{endDt}, '%Y-%m-%d %H:%i:%s')
+			</if>
+			<if test="userType != null">
+				<if test="userType == '01'">
+					AND TR.MANAGER_ID = #{userId}
+				</if>
+				<if test="userType == '02'">
+					AND TRU.USER_ID = #{userId}
+				</if>
+			</if>
+	</select>
+	
+	<insert id="insertRoom" parameterType="map">
+		/* 화상회의방 등록 */
+		INSERT INTO
+			TB_ROOM (
+					ROOM_NO
+					, ROOM_TITLE
+					, ROOM_TOPIC
+					, JOIN_CODE
+					, MANAGER_ID
+					, START_DT
+					, END_DT
+					, REG_ID
+					, REG_DT
+					, ROOM_STATUS
+					, MAX_PEOPLE
+					, SCREEN_TYPE
+					, QUALITY
+					, ROOM_TYPE
+					, VIEW_YN
+					)
+				VALUES(
+					#{roomNo}
+					, #{title}
+					, #{roomTopic}
+					, #{joinCode}
+					, #{managerId}
+					, #{startDt}
+					, #{endDt}
+					, #{regId}
+					, #{regDt}
+					, #{roomStatus}
+					, #{maxPeople}
+					, #{screenType}
+					, #{quality}
+					, #{roomType}
+					, #{viewYn}
+					)
+	</insert>
+	
+	<insert id="insJoinPeople" parameterType="map">
+		/* 화상회의 참여자 등록 */
+		INSERT INTO
+				TB_ROOM_USER
+					(
+						ROOM_NO
+						, USER_ID
+						, USER_NM
+						, USER_GB
+						, REG_ID
+						, REG_DT
+					)VALUES(
+						#{roomNo}
+						, #{userId}
+						, #{userNm}
+						, #{userGb}
+						, #{regId}
+						, #{regDt}
+					)
+	</insert>
+	
+	<select id="getHistorySeq"  resultType="int">
+		SELECT
+				MAX(HISTORY_SEQ)  AS HISTORY_SEQ
+		FROM				
+				TB_ROOM_HISTORY
+	</select>
+	
+	<insert id="insRoomHist" parameterType="map">
+		/* 화상회의 이력정보 등록 */
+		INSERT INTO
+				TB_ROOM_HISTORY
+					(
+						HISTORY_SEQ
+						, ROOM_NO
+						, ROOM_TITLE
+						, ROOM_TOPIC
+						<if test="joinCode != null">
+							, JOIN_CODE
+						</if>
+						<if test="managerId != null">
+							, MANAGER_ID
+						</if> 
+						<if test="startDt != null">
+							, START_DT
+						</if>
+						<if test="endDt != null">
+							, END_DT
+						</if>
+						<if test="regId != null">
+							, REG_ID
+						</if> 
+						<if test="regDt != null">
+							, REG_DT
+						</if>
+						, ACTION
+						, ROOM_STATUS
+						, MAX_PEOPLE
+						, SCREEN_TYPE
+						, QUALITY
+						, ROOM_TYPE
+						, VIEW_YN
+					)VALUES(
+							(
+								SELECT
+									IFNULL(MAX(TRHH.HISTORY_SEQ) +1 , 1) 
+								FROM 
+									TB_ROOM_HISTORY TRHH
+							)	
+							, #{roomNo}
+						<choose>
+							<when test="title != null">
+								, #{title}
+							</when>
+							<otherwise>
+								, (
+									SELECT
+										TRH.ROOM_TITLE AS ROOM_TITLE
+									FROM
+										TB_ROOM_HISTORY TRH
+									WHERE
+										TRH.ROOM_NO = #{roomNo}
+										AND TRH.HISTORY_SEQ = (
+															SELECT
+																MAX(TRH2.HISTORY_SEQ)
+															FROM
+																TB_ROOM_HISTORY TRH2
+															WHERE
+																TRH2.ROOM_NO = #{roomNo}
+															)
+									)
+							</otherwise>
+						</choose>
+						<choose>
+							<when test="roomTopic != null">
+								, #{roomTopic}
+							</when>
+							<otherwise>
+								, (
+									SELECT
+										TRH.ROOM_TOPIC AS ROOM_TOPIC
+									FROM
+										TB_ROOM_HISTORY TRH
+									WHERE
+										TRH.ROOM_NO = #{roomNo}
+										AND TRH.HISTORY_SEQ = (
+															SELECT
+																MAX(TRH2.HISTORY_SEQ)
+															FROM
+																TB_ROOM_HISTORY TRH2
+															WHERE
+																TRH2.ROOM_NO = #{roomNo}
+															)
+									)
+							</otherwise>
+						</choose>
+						<if test ="joinCode != null">
+							, #{joinCode}
+						</if>
+						<if test ="managerId != null">
+							, #{managerId}
+						</if>
+						<if test ="startDt != null">
+							, #{startDt}
+						</if>
+						<if test ="endDt != null">
+							, #{endDt}
+						</if>
+						<if test ="regId != null">
+							, #{regId}
+						</if>
+						<if test ="regDt != null">
+							, #{regDt}
+						</if>
+						, #{action}
+						, (SELECT ROOM_STATUS FROM TB_ROOM WHERE ROOM_NO = #{roomNo})
+						, #{maxPeople}
+						, #{screenType}
+						, #{quality}
+						, #{roomType}
+						, #{viewYn}
+					)
+	</insert>
+	<select id="getRoomList" parameterType="map" resultType="kr.co.softbridge.voplatform.room.dto.RoomDto">
+		/* 회의 목록 조회 */
+		SELECT DISTINCT
+				TR.ROOM_NO			AS ROOM_NO
+				, TR.ROOM_TITLE		AS TITLE
+				, TR.ROOM_TOPIC		AS OBJECTIVE
+				, TR.START_DT		AS START_DT
+				, TR.END_DT			AS END_DT
+				, TR.MANAGER_ID		AS MANAGER_ID
+				, TR.VIEW_YN		AS VIEW_YN
+				, TR.QUALITY		AS QUALITY
+				, TR.MAX_PEOPLE		AS MAX_PEOPLE
+				, TR.ROOM_TYPE		AS ROOM_TYPE
+				, TR.SCREEN_TYPE	AS SCREEN_TYPE
+				, TR.REG_DT			AS REG_DT
+				, TR.UDT_DT			AS UDT_DT
+				, TR.JOIN_CODE		AS JOIN_CODE
+				, TR.ROOM_STATUS	AS ROOM_STATUS
+		FROM
+				TB_ROOM TR
+		WHERE
+				1=1
+			<if test="roomNo != null">
+				AND TR.ROOM_NO = #{roomNo}
+			</if>
+			<if test="startDt != null">
+				AND TR.START_DT <![CDATA[>=]]>  DATE_FORMAT(#{startDt}, '%Y-%m-%d %H:%i:%s')	
+			</if>
+			<if test="endDt != null">
+				AND TR.END_DT <![CDATA[<=]]> DATE_FORMAT(#{endDt}, '%Y-%m-%d %H:%i:%s')
+			</if>
+	</select>
+	<select id="RoomViewDetl" parameterType="map" resultType="kr.co.softbridge.voplatform.room.dto.RoomDetlDto">
+		/* 화상회의방 상세정보 조회 */
+		SELECT
+				TR.ROOM_NO			as ROOM_NO
+				, TR.ROOM_TITLE		as TITLE
+				, TR.ROOM_TOPIC		as OBJECTIVE
+				, TR.START_DT		as START_DT
+				, TR.END_DT			as END_DT
+				, TR.VIEW_YN		as VIEW_YN
+				, TR.QUALITY		as QUALITY
+				, TR.MAX_PEOPLE		AS MAX_PEOPLE
+				, TR.ROOM_TYPE		AS ROOM_TYPE
+				, TR.SCREEN_TYPE	AS SCREEN_TYPE
+				, TR.REG_DT			AS REG_DT
+				, TR.UDT_DT			AS UDT_DT
+				, TR.MANAGER_ID		AS MANAGER_ID
+		FROM
+				TB_ROOM TR
+				LEFT OUTER JOIN TB_ROOM_USER TRU
+				ON TRU.ROOM_NO = TR.ROOM_NO
+		WHERE
+				TR.ROOM_NO = #{roomNo}
+			<if test="userId != null">
+				AND TRU.USER_ID = #{userId}
+			</if>
+				
+	
+	</select>
+	<select id="RoomJoinUserList" parameterType="map" resultType="kr.co.softbridge.voplatform.room.dto.UserListDto">
+		/* 화상회의방 참여자 조회 */
+		SELECT
+				TRU.USER_ID				
+				, TRU.USER_NM			
+				, USER_GB
+		FROM
+				TB_ROOM_USER TRU
+		WHERE
+				TRU.ROOM_NO = #{roomNo}
+	</select>
+	
+	<select id="RoomPwSel" parameterType="map" resultType="String">
+		/* 화상회의 방 비밀번호 조회 */
+		SELECT
+				TR.JOIN_CODE		AS JOIN_CODE
+		FROM
+				TB_ROOM TR
+		WHERE
+				TR.ROOM_NO = #{roomNo}
+	</select>
+	
+	<update id="tbRoomUpt" parameterType="map">
+		/* 화상회의 방 정보 수정 */
+		UPDATE
+				TB_ROOM TR
+		SET
+				<if test="udtId != null">
+					UDT_ID = #{udtId}
+				</if>
+				<if test="udtDt != null">
+					, UDT_DT = DATE_FORMAT(#{udtDt}, '%Y-%m-%d %H:%i:%s')
+				</if>
+				<if test="startDt != null">
+					, START_DT = DATE_FORMAT(#{startDt}, '%Y-%m-%d %H:%i:%s')
+				</if>
+				<if test="endDt != null">
+					, END_DT = DATE_FORMAT(#{endDt}, '%Y-%m-%d %H:%i:%s')
+				</if>
+				<if test="title != null">
+					, ROOM_TITLE = #{title}
+				</if>
+				<if test="objective != null">
+					, ROOM_TOPIC = #{objective}
+				</if>
+				<if test="roomStatus != null">
+					, ROOM_STATUS = #{roomStatus}
+				</if>
+		WHERE
+				TR.ROOM_NO = #{roomNo}
+				AND TR.MANAGER_ID = #{regId}
+	</update>
+	
+	<delete id ="tbRoomUserDel" parameterType="map">
+		/* 화상회의 참여자 삭제 */
+		DELETE FROM 
+				TB_ROOM_USER
+		WHERE
+				ROOM_NO = #{roomNo}
+	</delete>
+	
+	<select id="getUserList" parameterType="map" resultType="kr.co.softbridge.voplatform.room.dto.UserListDto">
+		/* 회의 목록조회 시 유저리스트 조회 */
+		SELECT
+				TRU.USER_ID
+				, TRU.USER_NM
+				, TRU.USER_GB
+		FROM
+				TB_ROOM_USER TRU
+		JOIN TB_ROOM TR 
+			ON TR.ROOM_NO = TRU.ROOM_NO
+			AND TR.ROOM_NO = #{roomNo}
+		<if test="startDt != null">
+			AND TR.START_DT <![CDATA[>=]]> DATE_FORMAT(#{startDt}, '%Y-%m-%d %H:%i:%s')		
+		</if>
+		<if test="endDt != null">
+			AND TR.END_DT <![CDATA[<=]]> DATE_FORMAT(#{endDt}, '%Y-%m-%d %H:%i:%s');
+		</if>
+	</select>
+	
+	<select id ="RoomNoSel" parameterType="map" resultType="kr.co.softbridge.voplatform.room.dto.GetRoomNoDto">
+		/* ROOM_NO 조회 */
+		SELECT DISTINCT
+				TR.ROOM_NO			AS ROOM_NO
+		FROM
+				TB_ROOM TR
+		LEFT OUTER JOIN TB_ROOM_USER TRU
+			ON TRU.ROOM_NO = TR.ROOM_NO
+	<if test ="userId != null">
+			AND TRU.USER_ID = #{userId}
+	</if>
+		WHERE
+				1=1
+			<if test="startDt != null">
+				AND TR.START_DT <![CDATA[>=]]>  DATE_FORMAT(#{startDt}, '%Y-%m-%d %H:%i:%s')	
+			</if>
+			<if test="endDt != null">
+				AND TR.END_DT <![CDATA[<=]]> DATE_FORMAT(#{endDt}, '%Y-%m-%d %H:%i:%s')
+			</if>
+				<if test="userType == '01'">
+					AND TR.MANAGER_ID = #{userId}
+					AND TRU.USER_ID = #{userId}
+				</if>
+				<if test="userType == '02'">
+					AND TRU.USER_ID = #{userId}
+				</if>
+		ORDER BY TR.START_DT DESC, TR.END_DT ASC, ROOM_NO DESC
+		LIMIT #{pageNum}, #{pageSize}
+	</select>
+	
+	<delete id="roomDelete" parameterType="map">
+		/* 화상회의 방 삭제 */
+		DELETE FROM
+				TB_ROOM
+		WHERE
+				ROOM_NO = #{roomNo}
+	</delete>
+	<insert id="delRoomHistIns" parameterType="map">
+		/* 화상회의 이력정보 등록(삭제) */
+		INSERT INTO 
+				TB_ROOM_HISTORY (
+					HISTORY_SEQ
+					, ROOM_NO
+					, ROOM_TITLE
+					, ROOM_TOPIC
+					, JOIN_CODE
+					, MANAGER_ID
+					, START_DT
+					, END_DT
+					, REG_ID
+					, REG_DT
+					, ACTION
+					, ROOM_STATUS
+					, QUALITY
+					, ROOM_TYPE
+					, SCREEN_TYPE
+					, VIEW_YN
+					, MAX_PEOPLE
+				)VALUES(
+					(
+						SELECT
+							IFNULL(MAX(TRHH.HISTORY_SEQ) +1 , 1) 
+						FROM 
+							TB_ROOM_HISTORY TRHH
+							)
+					, #{roomNo}
+					, #{roomTitle}
+					, #{roomTopic}
+					, #{joinCode}
+					, #{managerId}
+					, #{startDt}
+					, #{endDt}
+					, #{userId}
+					, #{nowTime}
+					, #{action}
+					, #{roomStatus}
+					, #{quality}
+					, #{roomType}
+					, #{screenType}
+					, #{viewYn}
+					, #{maxPeople}
+				)
+			
+	</insert>
+	
+	<select id="selTbRoomHist" parameterType="map" resultType="kr.co.softbridge.voplatform.room.dto.RoomHistDto">
+			/* 화상회의 이력정보 조회 */
+			SELECT
+					TRH.ROOM_TITLE
+					, TRH.ROOM_TOPIC
+					, TRH.JOIN_CODE
+					, TRH.MANAGER_ID
+					, TRH.START_DT
+					, TRH.END_DT
+					, TRH.ROOM_STATUS
+					, TRH.QUALITY
+					, TRH.MAX_PEOPLE
+					, TRH.ROOM_TYPE
+					, TRH.SCREEN_TYPE
+			FROM
+				TB_ROOM_HISTORY TRH
+			WHERE
+				TRH.ROOM_NO = #{roomNo}
+				AND TRH.HISTORY_SEQ = (
+										SELECT
+											MAX(TRH2.HISTORY_SEQ)
+										FROM
+											TB_ROOM_HISTORY TRH2
+										WHERE
+											TRH2.ROOM_NO = #{roomNo}
+										)
+	</select>
+	
+	<select id="roomSel" parameterType="map" resultType="int">
+		/* 화상회의 유무 체크 */
+		SELECT
+				count(*)
+		FROM
+				TB_ROOM
+		WHERE
+				ROOM_NO = #{roomNo}
+	</select>
+</mapper>

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.softbridge.voplatform.memo.mapper.MemoMapper">
+
+	<select id="getMemoId" parameterType="map" resultType="int">
+			/* 메모 ID 조회 */
+			SELECT
+					MAX(MEMO_ID)
+			FROM
+					TB_STICKY_NOTES 
+			WHERE
+					ROOM_NO = #{roomNo};
+	</select>
+	
+	<insert id="insertMemo" parameterType="map">
+			/* 포스트잇 정보 저장 */
+			INSERT INTO
+					TB_STICKY_NOTES
+						(
+							MEMO_ID
+							, ROOM_NO
+							, CONTENT
+							, COLOR
+							, WIDTH_RATIO
+							, HEIGHT_RATIO
+							, X_COORDINATE_RATIO
+							, Y_COORDINATE_RATIO
+							, REG_ID
+							, REG_NM
+							, REG_DT
+							, EDITING_YN
+					)VALUES(
+							(
+								SELECT
+									IFNULL(MAX(MEMO_ID) +1, 1)
+								FROM
+									TB_STICKY_NOTES TSN
+							)
+							, #{roomNo}
+							, #{content}
+							, #{color}
+							, #{widthRatio}
+							, #{heightRatio}
+							, #{xCoordinateRatio}
+							, #{yCoordinateRatio}
+							, #{userId}
+							, #{userNm}
+							, DATE_FORMAT(#{nowTime}, '%Y-%m-%d %H:%i:%s')
+							, #{editingYn}
+					)
+	</insert>
+
+	<select id="memoSelect" parameterType="map" resultType="kr.co.softbridge.voplatform.memo.dto.MemoListDto">
+			/* 메모 정보 조회 */
+			SELECT
+					MEMO_ID
+					, COLOR
+					, CONTENT
+					, WIDTH_RATIO
+					, HEIGHT_RATIO
+					, X_COORDINATE_RATIO
+					, Y_COORDINATE_RATIO
+					, EDITING_YN
+					, COALESCE(UDT_ID, REG_ID) AS USER_ID
+					, COALESCE(UDT_NM, REG_NM) AS USER_NM
+			FROM
+					TB_STICKY_NOTES
+			WHERE
+					ROOM_NO = #{roomNo}
+			ORDER BY MEMO_ID
+	</select>
+	
+	<update id="memoUpdate" parameterType="map">
+			/* 메모 정보 수정 */
+			UPDATE 
+					TB_STICKY_NOTES
+			<trim prefix="SET" suffixOverrides=",">
+				<if test="color != null">
+					COLOR = #{color},
+				</if>
+				<if test="content != null">
+					CONTENT = #{content},
+				</if>
+				<if test="widthRatio != null">
+					WIDTH_RATIO = #{widthRatio},
+				</if>
+				<if test="heightRatio != null">
+					HEIGHT_RATIO = #{heightRatio},
+				</if>
+				<if test="xCoordinateRatio != null">
+					X_COORDINATE_RATIO = #{xCoordinateRatio},
+				</if>
+				<if test="yCoordinateRatio != null">
+					Y_COORDINATE_RATIO = #{yCoordinateRatio},
+				</if>
+				<if test="userId != null">
+					UDT_ID = #{userId},
+				</if>
+				<if test="userNm != null">
+					UDT_NM = #{userNm},
+				</if>
+				<if test="nowTime != null">
+					UDT_DT = DATE_FORMAT(#{nowTime}, '%Y-%m-%d %H:%i:%s'),
+				</if>
+				<if test="editingYn != null">
+					EDITING_YN = #{editingYn},
+				</if>
+			</trim>
+			WHERE
+					ROOM_NO = #{roomNo}
+					AND MEMO_ID = #{memoId}
+	</update>
+	
+	<delete id="memoDelete" parameterType="map">
+			/* 포스트잇 삭제 */
+			DELETE FROM
+					TB_STICKY_NOTES
+			WHERE
+					ROOM_NO = #{roomNo}
+				<if test="memoId != null">
+					AND MEMO_ID = #{memoId}
+				</if>
+	</delete>
+	
+</mapper>

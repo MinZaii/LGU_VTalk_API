@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace = "kr.co.softbridge.voplatform.whiteboard.mapper.WhiteboardMapper">
+	<insert id="insImg" parameterType="map">
+		/* 화이트보드 이미지 정보 저장 */
+		INSERT INTO TB_WHITEBOARD_IMAGE
+		(
+			ROOM_NO
+			, IMAGE_SEQ
+			, IMAGE_URL
+			, WIDTH_RATIO
+			, HEIGHT_RATIO
+			, X_COORDINATE_RATIO
+			, Y_COORDINATE_RATIO
+			, REG_ID
+			, REG_NM
+			, REG_DT
+		)
+		VALUES
+		(
+			#{roomNo}
+			, ( SELECT
+					IFNULL(MAX(WI2.IMAGE_SEQ) +1, 1)
+				FROM
+					TB_WHITEBOARD_IMAGE WI2
+			)
+			, #{imgUrl}
+			, #{widthRatio}
+			, #{heightRatio}
+			, #{xCoordinateRatio}
+			, #{yCoordinateRatio}
+			, #{userId}
+			, #{userNm}
+			, DATE_FORMAT(#{nowTime}, '%Y-%m-%d %H:%i:%s')
+		)
+	</insert>
+	
+	<select id="getImgId" parameterType="map" resultType="int">
+		/* 화이트보드 이미지ID 조회 */
+		SELECT
+				IMAGE_SEQ AS IMG_ID
+		FROM
+				TB_WHITEBOARD_IMAGE
+		WHERE
+				ROOM_NO = #{roomNo}
+				AND IMAGE_URL = #{imgUrl}
+	</select>
+	
+	<update id="uptImg" parameterType="map">
+		/* 화이트보드 이미지 정보 수정 */
+		UPDATE 
+				TB_WHITEBOARD_IMAGE
+			<trim prefix="SET" suffixOverrides=",">
+				<if test="widthRatio != null">
+					WIDTH_RATIO = #{widthRatio},
+				</if>
+				<if test="heightRatio != null">
+					HEIGHT_RATIO = #{heightRatio},
+				</if>
+				<if test="xCoordinateRatio != null">
+					X_COORDINATE_RATIO = #{xCoordinateRatio},
+				</if>
+				<if test="yCoordinateRatio != null">
+					Y_COORDINATE_RATIO = #{yCoordinateRatio},
+				</if>
+				<if test="userId != null">
+					UDT_ID = #{userId},
+				</if>
+				<if test="userNm != null">
+					UDT_NM = #{userNm},
+				</if>
+				<if test="nowTime != null">
+					UDT_DT = DATE_FORMAT(#{nowTime}, '%Y-%m-%d %H:%i:%s'),
+				</if>
+			</trim>
+		WHERE
+				ROOM_NO = #{roomNo}
+				AND IMAGE_SEQ = #{imgId}
+	</update>
+	
+	<delete id="delImg" parameterType="map">
+		/* 화이트보드 이미지 삭제 */
+		DELETE FROM
+				TB_WHITEBOARD_IMAGE
+		WHERE
+				ROOM_NO = #{roomNo}
+			<if test="imgId != null">
+				AND IMAGE_SEQ = #{imgId}	
+			</if>
+	</delete>
+	
+	<select id="imgSelect" parameterType="map" resultType="kr.co.softbridge.voplatform.whiteboard.dto.WhiteboardImgDto">
+		/* 화이트보드 이미지 정보 조회 */
+		SELECT
+				IMAGE_SEQ	AS IMG_ID
+				, IMAGE_URL AS IMG_URL
+				, WIDTH_RATIO
+				, HEIGHT_RATIO
+				, X_COORDINATE_RATIO
+				, Y_COORDINATE_RATIO
+				, COALESCE(UDT_ID, REG_ID) AS USER_ID
+				, COALESCE(UDT_NM, REG_NM) AS USER_NM
+		FROM
+				TB_WHITEBOARD_IMAGE
+		WHERE
+				ROOM_NO = #{roomNo}
+		ORDER BY IMAGE_SEQ
+	</select>
+</mapper>
