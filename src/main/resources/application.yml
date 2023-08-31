@@ -9,14 +9,14 @@ spring:
       max-file-size: 104857600
       max-request-size: 104857600
   datasource:
-    url: jdbc:log4jdbc:mysql://15.164.78.128:3306/sobro?characterEncoding=utf8
+    url: jdbc:log4jdbc:mysql://localhost:3306/sobro?characterEncoding=utf8
     username: sobro
     password: sobro!21
     driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
 
 primary:
   datasource:
-    jdbc-url: jdbc:log4jdbc:mysql://15.164.78.128:3306/sobro?characterEncoding=utf8
+    jdbc-url: jdbc:log4jdbc:mysql://localhost:3306/sobro?characterEncoding=utf8
     username: sobro
     password: sobro!21
     driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
